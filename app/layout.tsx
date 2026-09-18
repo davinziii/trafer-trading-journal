@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   title: "Trafer — Crypto Trading Journal",
   description: "A simple personal crypto trading journal.",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/trafericon.png",
   },
 };
 
