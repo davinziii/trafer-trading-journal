@@ -26,6 +26,9 @@ const mono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Trafer — Crypto Trading Journal",
   description: "A simple personal crypto trading journal.",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
