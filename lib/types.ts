@@ -29,9 +29,25 @@ export type DailyStats = {
   pct: number | null;
   /** Number of structurally complete trades for the day. */
   tradeCount: number;
+  /** Trades logged with 0 SOL win/loss on purpose — excluded from wins/completed. */
+  practiceCount: number;
 };
 
 export type RequiredField = "ca" | "coinName" | "reason" | "entry" | "out" | "winLoss";
+
+/**
+ * A note about a coin the trader watched or considered but never actually
+ * traded — separate from both Trade (a real entry/exit) and the free-form
+ * global Notepad. Scoped per day, same as Trade.
+ */
+export type CoinNote = {
+  id: string;
+  /** ISO date key, e.g. "2026-09-17" */
+  date: string;
+  ca: string;
+  coinName: string;
+  note: string;
+};
 
 /* ---------------------------------- trade summary (AI) ---------------------------------- */
 
@@ -43,7 +59,9 @@ export type PeriodStats = {
   wins: number;
   losses: number;
   breakEven: number;
-  /** Win percentage over decided (non-break-even) trades, or null if none. */
+  /** Trades logged with 0 SOL win/loss on purpose — excluded from wins/losses. */
+  practice: number;
+  /** Win percentage over decided (non-break-even, non-practice) trades, or null if none. */
   winratePct: number | null;
   pnl: number;
 };
@@ -71,6 +89,16 @@ export type SummaryRequestTrade = {
   winLoss: number;
   result: number;
   outcome: "win" | "loss" | "even";
+  /** True when the trader logged this as a 0 SOL practice trade — no real stake. */
+  isPractice: boolean;
+};
+
+/** A watched-but-not-traded coin, as sent to the AI. Never has a result/outcome. */
+export type SummaryRequestNote = {
+  date: string;
+  coinName: string;
+  ca?: string;
+  note: string;
 };
 
 export type SummaryRequestPayload = {
@@ -78,6 +106,8 @@ export type SummaryRequestPayload = {
   label: string;
   trades: SummaryRequestTrade[];
   performance: PeriodStats;
+  /** Coins watched/considered but not traded in this period. May be empty. */
+  notes: SummaryRequestNote[];
 };
 
 export type SummaryCacheEntry = {

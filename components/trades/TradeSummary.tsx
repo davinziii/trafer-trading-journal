@@ -27,6 +27,12 @@ export function TradeSummary({ stats }: TradeSummaryProps) {
         <div className="text-xs mb-0.5 text-faint">Trades</div>
         <div className="font-mono text-lg font-medium text-ink">{stats.tradeCount}</div>
       </div>
+      {stats.practiceCount > 0 && (
+        <div>
+          <div className="text-xs mb-0.5 text-faint">Practice</div>
+          <div className="font-mono text-lg font-medium text-rate">{stats.practiceCount}</div>
+        </div>
+      )}
     </div>
   );
 }

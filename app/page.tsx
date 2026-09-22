@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CalendarMode, Trade } from "@/lib/types";
+import { CalendarMode, CoinNote, Trade } from "@/lib/types";
 import { storage } from "@/lib/storage";
 import { toDateKey } from "@/lib/calculations";
 import { Header } from "@/components/layout/Header";
@@ -17,6 +17,7 @@ function startOfMonth(date: Date): Date {
 
 export default function Home() {
   const [trades, setTradesState] = useState<Trade[]>([]);
+  const [coinNotes, setCoinNotesState] = useState<CoinNote[]>([]);
   const [mode, setMode] = useState<CalendarMode>("pnl");
   const [currentMonth, setCurrentMonth] = useState<Date>(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<string | null>(() => {
@@ -25,13 +26,19 @@ export default function Home() {
   });
   const [notepadOpen, setNotepadOpen] = useState(true);
 
-  // Loaded flag prevents the initial empty state from overwriting saved data
+  // Loaded flags prevent the initial empty state from overwriting saved data
   // before it has actually been read back from localStorage.
-  const hasLoaded = useRef(false);
+  const hasLoadedTrades = useRef(false);
+  const hasLoadedNotes = useRef(false);
 
   useEffect(() => {
     setTradesState(storage.readTrades());
-    hasLoaded.current = true;
+    hasLoadedTrades.current = true;
+  }, []);
+
+  useEffect(() => {
+    setCoinNotesState(storage.readCoinNotes());
+    hasLoadedNotes.current = true;
   }, []);
 
   // Writes to localStorage happen inside the same state update as the
@@ -41,7 +48,16 @@ export default function Home() {
   const setTrades = useCallback((updater: Trade[] | ((prev: Trade[]) => Trade[])) => {
     setTradesState((prev) => {
       const next = typeof updater === "function" ? (updater as (p: Trade[]) => Trade[])(prev) : updater;
-      if (hasLoaded.current) storage.writeTrades(next);
+      if (hasLoadedTrades.current) storage.writeTrades(next);
+      return next;
+    });
+  }, []);
+
+  // Same race-safe pattern as trades, but for the watched-coin notes.
+  const setCoinNotes = useCallback((updater: CoinNote[] | ((prev: CoinNote[]) => CoinNote[])) => {
+    setCoinNotesState((prev) => {
+      const next = typeof updater === "function" ? (updater as (p: CoinNote[]) => CoinNote[])(prev) : updater;
+      if (hasLoadedNotes.current) storage.writeCoinNotes(next);
       return next;
     });
   }, []);
@@ -55,7 +71,9 @@ export default function Home() {
 
           <div className="flex-1 min-w-0 w-full">
             <div className="flex flex-col sm:flex-row gap-4 items-start">
-              {selectedDate && <TradeInsights trades={trades} selectedDate={selectedDate} />}
+              {selectedDate && (
+                <TradeInsights trades={trades} coinNotes={coinNotes} selectedDate={selectedDate} />
+              )}
               <TradingCalendar
                 trades={trades}
                 mode={mode}
@@ -68,7 +86,13 @@ export default function Home() {
             </div>
 
             {selectedDate ? (
-              <DailyTrades dateKey={selectedDate} trades={trades} onChange={setTrades} />
+              <DailyTrades
+                dateKey={selectedDate}
+                trades={trades}
+                onChange={setTrades}
+                coinNotes={coinNotes}
+                onChangeCoinNotes={setCoinNotes}
+              />
             ) : (
               <EmptyState />
             )}

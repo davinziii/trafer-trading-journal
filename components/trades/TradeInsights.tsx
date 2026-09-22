@@ -6,6 +6,7 @@ import {
   SummaryCache,
   SummaryPeriodType,
   SummaryRequestPayload,
+  CoinNote,
   Trade,
   TradeSummaryContent,
 } from "@/lib/types";
@@ -17,9 +18,12 @@ import {
   formatSol,
   getPreviousMonth,
   getWeekRanges,
-  hashTrades,
+  hashPeriodData,
+  notesInMonth,
+  notesInRange,
   solColorClass,
   toDateKey,
+  toSummaryRequestNotes,
   toSummaryRequestTrades,
   tradesInMonth,
   tradesInRange,
@@ -29,6 +33,7 @@ import { Button } from "@/components/ui/Button";
 
 type TradeInsightsProps = {
   trades: Trade[];
+  coinNotes: CoinNote[];
   selectedDate: string;
 };
 
@@ -81,7 +86,7 @@ function noTradesMessage(periodType: SummaryPeriodType): { primary: string; seco
   return { primary: "No summary for this month." };
 }
 
-export function TradeInsights({ trades, selectedDate }: TradeInsightsProps) {
+export function TradeInsights({ trades, coinNotes, selectedDate }: TradeInsightsProps) {
   const [open, setOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>("day");
 
@@ -114,22 +119,26 @@ export function TradeInsights({ trades, selectedDate }: TradeInsightsProps) {
   const period = useMemo(() => {
     if (activeTab === "day") {
       const periodTrades = trades.filter((t) => t.date === selectedDate);
+      const periodNotes = coinNotes.filter((n) => n.date === selectedDate);
       return {
         type: "day" as SummaryPeriodType,
         key: `day:${selectedDate}`,
         label: formatLongDate(selectedDate),
         trades: periodTrades,
+        notes: periodNotes,
         complete: true,
         completeAfterLabel: undefined as string | undefined,
       };
     }
     if (activeTab === "prevMonth") {
       const periodTrades = tradesInMonth(trades, prevMonth.year, prevMonth.month);
+      const periodNotes = notesInMonth(coinNotes, prevMonth.year, prevMonth.month);
       return {
         type: "month" as SummaryPeriodType,
         key: `month:${prevMonth.year}-${String(prevMonth.month + 1).padStart(2, "0")}`,
         label: `${MONTHS[prevMonth.month]} ${prevMonth.year}`,
         trades: periodTrades,
+        notes: periodNotes,
         complete: true,
         completeAfterLabel: undefined as string | undefined,
       };
@@ -137,6 +146,7 @@ export function TradeInsights({ trades, selectedDate }: TradeInsightsProps) {
     const idx = Number(activeTab.replace("week", "")) as 1 | 2 | 3 | 4;
     const range = weekRanges[idx - 1];
     const periodTrades = tradesInRange(trades, range.startKey, range.endKey);
+    const periodNotes = notesInRange(coinNotes, range.startKey, range.endKey);
     // A week is only "done" once every one of its days has actually
     // occurred — not just because it has 7 days' worth of trades in it.
     const complete = todayKey > range.endKey;
@@ -145,13 +155,14 @@ export function TradeInsights({ trades, selectedDate }: TradeInsightsProps) {
       key: `week:${year}-${String(month + 1).padStart(2, "0")}:${idx}`,
       label: `Week ${idx} — ${MONTHS[month]} ${range.startDay}\u2013${range.endDay}, ${year}`,
       trades: periodTrades,
+      notes: periodNotes,
       complete,
       completeAfterLabel: complete ? undefined : formatLongDate(range.endKey),
     };
-  }, [activeTab, trades, selectedDate, year, month, weekRanges, prevMonth, todayKey]);
+  }, [activeTab, trades, coinNotes, selectedDate, year, month, weekRanges, prevMonth, todayKey]);
 
   const stats = useMemo(() => computePeriodStats(period.trades), [period.trades]);
-  const currentHash = useMemo(() => hashTrades(period.trades), [period.trades]);
+  const currentHash = useMemo(() => hashPeriodData(period.trades, period.notes), [period.trades, period.notes]);
 
   const ensureSummary = useCallback(async (periodKey: string, payload: SummaryRequestPayload, hash: string) => {
     if (inFlightRef.current.has(periodKey)) return;
@@ -223,9 +234,10 @@ export function TradeInsights({ trades, selectedDate }: TradeInsightsProps) {
       label: period.label,
       trades: toSummaryRequestTrades(period.trades),
       performance: stats,
+      notes: toSummaryRequestNotes(period.notes),
     };
     ensureSummary(period.key, payload, currentHash);
-  }, [cache, period.key, period.type, period.complete, period.label, period.trades, stats, currentHash, ensureSummary]);
+  }, [cache, period.key, period.type, period.complete, period.label, period.trades, period.notes, stats, currentHash, ensureSummary]);
 
   const entry = cache?.[period.key];
   const isLoading = loadingKeys.has(period.key);
@@ -239,6 +251,7 @@ export function TradeInsights({ trades, selectedDate }: TradeInsightsProps) {
       label: period.label,
       trades: toSummaryRequestTrades(period.trades),
       performance: stats,
+      notes: toSummaryRequestNotes(period.notes),
     };
     ensureSummary(period.key, payload, currentHash);
   };
@@ -315,6 +328,12 @@ export function TradeInsights({ trades, selectedDate }: TradeInsightsProps) {
                       <div>
                         <div className="text-xs mb-0.5 text-faint">Break-even</div>
                         <div className="font-mono text-lg font-medium text-neutral">{stats.breakEven}</div>
+                      </div>
+                    )}
+                    {stats.practice > 0 && (
+                      <div>
+                        <div className="text-xs mb-0.5 text-faint">Practice</div>
+                        <div className="font-mono text-lg font-medium text-rate">{stats.practice}</div>
                       </div>
                     )}
                   </div>

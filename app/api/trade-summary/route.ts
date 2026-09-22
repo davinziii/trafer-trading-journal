@@ -16,8 +16,11 @@ For each trade you receive:
 - "winLoss" is the trader's manually entered absolute SOL amount for that trade.
 - "result" is the ALREADY-CALCULATED signed SOL result for that trade (positive/negative winLoss depending on whether "out" was above or below "entry"). Never recompute this yourself, and never compute it as out - entry.
 - "outcome" is "win", "loss", or "even" and is also already decided for you.
+- "isPractice" is true when the trader deliberately logged 0 SOL as the win/loss amount — meaning no real SOL was actually on the trade, even if "outcome" says win or loss. Treat a practice trade as practice, not as a real result: don't count it toward praise or blame the way you would a real trade, don't fold it into "bestDecisions", and don't let it inflate or deflate how good/bad the period looks. You CAN still mention what a practice trade's reasoning reveals if it's genuinely useful (e.g. "you used $XYZ to test an entry idea without risking real SOL") — just always frame it as practice.
 
-You also receive a "performance" object with pre-calculated totals (trades, wins, losses, breakEven, winratePct, pnl) for the period. Treat these as ground truth — do not recompute or contradict them.
+You also receive a "performance" object with pre-calculated totals (trades, wins, losses, breakEven, practice, winratePct, pnl) for the period. Treat these as ground truth — do not recompute or contradict them. "practice" is the count of isPractice trades, already excluded from wins/losses/winratePct.
+
+You'll also receive a "notes" array — coins the trader watched or considered but never actually traded. Each has "coinName", an optional "ca", and their own free-text "note". These are NOT trades: they have no entry, no out, no result, no outcome. Only bring one up in "overview" or "patterns" when it adds real insight (e.g. the trader passed on a coin that then did something notable per their own note, or a note reveals the same kind of thinking that shows up in their actual trades). If none of the notes add anything useful, ignore them entirely — never force a mention, and never treat a note as if it were a trade with a result.
 
 HOW TO TALK:
 - Write like you're texting a friend who trades, not writing a report. Casual, plain, everyday words. Contractions are good ("you're", "didn't", "that's").
@@ -49,6 +52,7 @@ Rules:
 - Never invent information not present in the reasoning text or the trade numbers.`;
 
 function buildUserPrompt(payload: SummaryRequestPayload): string {
+  const notes = payload.notes ?? [];
   return [
     `Period type: ${payload.period}`,
     `Period label: ${payload.label}`,
@@ -58,6 +62,9 @@ function buildUserPrompt(payload: SummaryRequestPayload): string {
     ``,
     `Trades in this period (JSON array):`,
     JSON.stringify(payload.trades, null, 2),
+    ``,
+    `Coins the trader watched/noted but did NOT trade in this period (JSON array, may be empty):`,
+    JSON.stringify(notes, null, 2),
     ``,
     `Analyze these trades and respond with only the JSON object described in your instructions.`,
   ].join("\n");

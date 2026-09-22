@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Trade, RequiredField } from "@/lib/types";
+import { CoinNote, Trade, RequiredField } from "@/lib/types";
 import {
   computeDailyStats,
   formatLongDate,
@@ -9,14 +9,17 @@ import {
   isTradeStructurallyComplete,
   makeId,
 } from "@/lib/calculations";
-import { TradeTable } from "./TradeTable";
+import { TradeList } from "./TradeList";
 import { TradeSummary } from "./TradeSummary";
+import { CoinNotesPanel } from "./CoinNotesPanel";
 import { Button } from "@/components/ui/Button";
 
 type DailyTradesProps = {
   dateKey: string;
   trades: Trade[];
   onChange: (trades: Trade[]) => void;
+  coinNotes: CoinNote[];
+  onChangeCoinNotes: (notes: CoinNote[]) => void;
 };
 
 function makeBlankTrade(dateKey: string): Trade {
@@ -33,7 +36,7 @@ function makeBlankTrade(dateKey: string): Trade {
   };
 }
 
-export function DailyTrades({ dateKey, trades, onChange }: DailyTradesProps) {
+export function DailyTrades({ dateKey, trades, onChange, coinNotes, onChangeCoinNotes }: DailyTradesProps) {
   const [rowErrors, setRowErrors] = useState<Record<string, RequiredField[]>>({});
 
   const dayTrades = useMemo(() => trades.filter((t) => t.date === dateKey), [trades, dateKey]);
@@ -132,20 +135,26 @@ export function DailyTrades({ dateKey, trades, onChange }: DailyTradesProps) {
         <TradeSummary stats={stats} />
       </div>
 
-      {dayTrades.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-faint">
-          No trades recorded.
+      <div className="flex flex-col lg:flex-row gap-4 items-start">
+        <CoinNotesPanel dateKey={dateKey} notes={coinNotes} onChange={onChangeCoinNotes} />
+        <div className="flex-1 min-w-0 w-full">
+          {dayTrades.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-faint">
+              No trades recorded.
+            </div>
+          ) : (
+            <TradeList
+              trades={dayTrades}
+              onUpdate={updateTrade}
+              onDelete={deleteTrade}
+              onRowEnter={handleRowEnter}
+              onAddRow={handleAddFromRow}
+              rowErrors={rowErrors}
+            />
+          )}
         </div>
-      ) : (
-        <TradeTable
-          trades={dayTrades}
-          onUpdate={updateTrade}
-          onDelete={deleteTrade}
-          onRowEnter={handleRowEnter}
-          onAddRow={handleAddFromRow}
-          rowErrors={rowErrors}
-        />
-      )}
+        
+      </div>
     </div>
   );
 }

@@ -1,4 +1,12 @@
-import { DailyStats, PeriodStats, RequiredField, SummaryRequestTrade, Trade } from "./types";
+import {
+  CoinNote,
+  DailyStats,
+  PeriodStats,
+  RequiredField,
+  SummaryRequestNote,
+  SummaryRequestTrade,
+  Trade,
+} from "./types";
 
 /* ---------------------------------- formatting ---------------------------------- */
 
@@ -78,6 +86,17 @@ export function tradeOutcome(trade: Pick<Trade, "entry" | "out">): Outcome {
   return "even";
 }
 
+/**
+ * A trade the user explicitly logged with 0 SOL win/loss — i.e. no real
+ * stake was on it. Independent of the entry/out outcome: a "practice" trade
+ * can still show out > entry or out < entry, it just didn't move any real
+ * SOL, so it's excluded from win/loss tallies but still shown and still
+ * counted in the trade total.
+ */
+export function isPracticeTrade(t: Pick<Trade, "winLoss" | "winLossTouched">): boolean {
+  return !!t.winLossTouched && t.winLoss === 0;
+}
+
 /** Whether a trade has all required fields validly filled in. */
 export function isTradeStructurallyComplete(t: Trade): boolean {
   return (
@@ -106,15 +125,20 @@ export function getMissingFields(t: Trade): RequiredField[] {
   return missing;
 }
 
-/** Aggregates a day's trades into PNL + winrate stats. Break-even trades are excluded from winrate. */
+/** Aggregates a day's trades into PNL + winrate stats. Break-even and practice trades are excluded from winrate. */
 export function computeDailyStats(dayTrades: Trade[]): DailyStats {
   const complete = dayTrades.filter(isTradeStructurallyComplete);
   let pnl = 0;
   let wins = 0;
   let completed = 0;
+  let practiceCount = 0;
 
   for (const t of complete) {
     pnl += tradeResult(t);
+    if (isPracticeTrade(t)) {
+      practiceCount++;
+      continue;
+    }
     const outcome = tradeOutcome(t);
     if (outcome === "win") {
       wins++;
@@ -125,7 +149,7 @@ export function computeDailyStats(dayTrades: Trade[]): DailyStats {
   }
 
   const pct = completed > 0 ? (wins / completed) * 100 : null;
-  return { pnl, wins, completed, pct, tradeCount: complete.length };
+  return { pnl, wins, completed, pct, tradeCount: complete.length, practiceCount };
 }
 
 /* ---------------------------------- dates ---------------------------------- */
@@ -203,22 +227,38 @@ export function tradesInMonth(trades: Trade[], year: number, month: number): Tra
   return tradesInRange(trades, toDateKey(year, month, 1), toDateKey(year, month, daysInMonth));
 }
 
+/** Same range filtering as tradesInRange/tradesInMonth, but for CoinNote[]. */
+export function notesInRange(notes: CoinNote[], startKey: string, endKey: string): CoinNote[] {
+  return notes.filter((n) => n.date >= startKey && n.date <= endKey);
+}
+
+export function notesInMonth(notes: CoinNote[], year: number, month: number): CoinNote[] {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  return notesInRange(notes, toDateKey(year, month, 1), toDateKey(year, month, daysInMonth));
+}
+
 /**
  * Aggregates any set of trades into the fuller stats the Trade Summary
- * needs (wins/losses/break-even split out, rather than the calendar's
- * simpler DailyStats). Built entirely on the existing tradeResult /
- * tradeOutcome / isTradeStructurallyComplete logic above — no separate
- * PNL or win-rate calculation is introduced.
+ * needs (wins/losses/break-even/practice split out, rather than the
+ * calendar's simpler DailyStats). Built entirely on the existing
+ * tradeResult / tradeOutcome / isTradeStructurallyComplete /
+ * isPracticeTrade logic above — no separate PNL or win-rate calculation
+ * is introduced.
  */
 export function computePeriodStats(periodTrades: Trade[]): PeriodStats {
   const complete = periodTrades.filter(isTradeStructurallyComplete);
   let wins = 0;
   let losses = 0;
   let breakEven = 0;
+  let practice = 0;
   let pnl = 0;
 
   for (const t of complete) {
     pnl += tradeResult(t);
+    if (isPracticeTrade(t)) {
+      practice++;
+      continue;
+    }
     const outcome = tradeOutcome(t);
     if (outcome === "win") wins++;
     else if (outcome === "loss") losses++;
@@ -227,7 +267,7 @@ export function computePeriodStats(periodTrades: Trade[]): PeriodStats {
 
   const decided = wins + losses;
   const winratePct = decided > 0 ? (wins / decided) * 100 : null;
-  return { trades: complete.length, wins, losses, breakEven, winratePct, pnl };
+  return { trades: complete.length, wins, losses, breakEven, practice, winratePct, pnl };
 }
 
 /**
@@ -250,9 +290,30 @@ export function hashTrades(periodTrades: Trade[]): string {
 }
 
 /**
+ * Same idea as hashTrades, but also folds in the watched-coin notes for the
+ * period, so adding/editing a note invalidates a cached AI summary even if
+ * no trade itself changed.
+ */
+export function hashPeriodData(periodTrades: Trade[], periodNotes: CoinNote[]): string {
+  const tradeHash = hashTrades(periodTrades);
+  const noteHash = periodNotes
+    .slice()
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((n) => [n.id, n.date, n.coinName, n.ca, n.note].join("|"))
+    .join("~");
+
+  let h = 0;
+  for (let i = 0; i < noteHash.length; i++) {
+    h = (h * 31 + noteHash.charCodeAt(i)) | 0;
+  }
+  return `${tradeHash}::${h >>> 0}:${noteHash.length}`;
+}
+
+/**
  * Maps trades into the compact, structured shape sent to the AI — only
- * structurally-complete trades, with the result/outcome already computed
- * by the existing trade-math above so the AI never recalculates PNL itself.
+ * structurally-complete trades, with the result/outcome/practice flag
+ * already computed by the existing trade-math above so the AI never
+ * recalculates any of it itself.
  */
 export function toSummaryRequestTrades(periodTrades: Trade[]): SummaryRequestTrade[] {
   return periodTrades
@@ -266,5 +327,22 @@ export function toSummaryRequestTrades(periodTrades: Trade[]): SummaryRequestTra
       winLoss: t.winLoss,
       result: tradeResult(t),
       outcome: tradeOutcome(t),
+      isPractice: isPracticeTrade(t),
+    }));
+}
+
+/**
+ * Maps watched-but-not-traded coin notes into the compact shape sent to the
+ * AI. Notes with neither a coin name nor any note text are skipped — they're
+ * just an empty row the user hasn't filled in yet.
+ */
+export function toSummaryRequestNotes(periodNotes: CoinNote[]): SummaryRequestNote[] {
+  return periodNotes
+    .filter((n) => n.coinName.trim() !== "" || n.note.trim() !== "")
+    .map((n) => ({
+      date: n.date,
+      coinName: n.coinName,
+      ca: n.ca.trim() || undefined,
+      note: n.note,
     }));
 }

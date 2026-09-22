@@ -1,366 +1,104 @@
-# Trafer — Crypto Trading Journal
+# Ledger — Crypto Trading Journal
 
-A simple personal crypto trading journal for reviewing trades, tracking performance, and improving decision-making over time.
+A simple personal crypto trading journal: a monthly calendar showing daily PNL or
+winrate, a per-day trade list, a watchlist for coins you noted but didn't trade,
+an AI-generated Trade Summary (journal analyst feedback by day/week/month), and
+a collapsible rich-text notepad. Built with Next.js (App Router), React,
+TypeScript, and Tailwind CSS. All data is stored in the browser via
+`localStorage`.
 
-Trafer provides a monthly trading calendar with daily PNL and winrate, a per-day trade journal, AI-powered Trade Summaries, and a collapsible rich-text notepad.
-
-Built with **Next.js (App Router), React, TypeScript, and Tailwind CSS**. Trade journal data, notes, and cached AI summaries are stored locally in the browser using `localStorage`.
-
-## Features
-
-* Monthly trading calendar
-* Daily PNL and winrate views
-* Per-day trade journal
-* Market-cap based Entry / Out tracking
-* Automatic Win/Loss calculation
-* Daily trading statistics
-* AI-generated Trade Summaries
-
-  * Daily analysis
-  * Weekly analysis
-  * Previous-month analysis
-  * Identifies strengths, mistakes, and recurring patterns
-* Cached AI summaries to avoid unnecessary API calls
-* Collapsible rich-text notepad
-* Persistent browser storage
-* Dark-mode interface
-
-## Getting Started
-
-### 1. Install dependencies
+## Getting started
 
 ```bash
 npm install
-```
-
-### 2. Start the development server
-
-```bash
 npm run dev
 ```
 
-Open http://localhost:3000 in your browser.
+Open http://localhost:3000.
 
----
+### Enabling the AI Trade Summary
 
-## Enabling AI Trade Summaries
-
-Trafer uses the **Gemini API** to generate Trade Summaries.
-
-The API request is handled through a server-side Next.js route, keeping the Gemini API key out of the client-side application.
-
-### 1. Create your environment file
-
-Copy the example environment file:
+The Trade Summary panel calls the Gemini API from a server-side route so the
+API key is never exposed to the browser. To enable it:
 
 ```bash
 cp .env.example .env.local
+# then edit .env.local and set GEMINI_API_KEY=your-key
 ```
 
-Then open `.env.local` and add your API key:
-
-```env
-GEMINI_API_KEY=your-key
-```
-
-**Never commit `.env.local` or your actual API key to Git.**
-
-The `.env.example` file should only contain a placeholder:
-
-```env
-GEMINI_API_KEY=
-```
-
-### 2. Get a Gemini API key
-
-Get your API key from:
-
-https://aistudio.google.com/apikey
-
-### 3. Restart the development server
-
-After adding or changing the API key:
-
-```bash
-npm run dev
-```
-
-If no Gemini API key is configured, the rest of the application still works normally. Only the AI Trade Summary feature will be unavailable.
-
----
-
-## How Trading Numbers Work
-
-Trafer intentionally separates **market-cap movement** from **actual PNL**.
-
-### Entry / Out
-
-**Entry** and **Out** represent the coin's market cap at the time of entry and exit.
-
-They are **not** the amount of money invested or returned.
-
-For example:
-
-```text
-Entry: $27K
-Out:   $62K
-```
-
-These values are used to determine whether the trade was profitable.
-
-### Win/Loss
-
-The **Win/Loss** field is the absolute amount of SOL associated with the trade.
-
-For example:
-
-```text
-3
-```
-
-The application determines the sign automatically.
-
-```text
-Out > Entry  → +3 SOL
-Out < Entry  → -3 SOL
-Out = Entry  →  0 SOL
-```
-
-The stored `winLoss` value remains positive. The signed result is calculated dynamically.
-
-### Daily PNL
-
-Daily PNL is the sum of all calculated trade results for that day.
-
-For example:
-
-```text
-+3 SOL
--1.5 SOL
-+2 SOL
-────────
-+3.5 SOL
-```
-
-### Daily Winrate
-
-Winrate is calculated as:
-
-```text
-wins / (wins + losses)
-```
-
-Break-even trades are excluded from the calculation.
-
-For example:
-
-```text
-2 wins
-1 loss
-1 break-even
-
-Winrate = 2 / 3 = 66.7%
-```
-
----
-
-## AI Trade Summary
-
-The Trade Summary acts as a journal analyst rather than a market prediction tool.
-
-It analyzes the information recorded in the journal, including:
-
-* Why I picked it
-* Entry market cap
-* Out market cap
-* Trade result
-* Daily/weekly performance
-* Repeated behaviors and patterns
-
-The AI can highlight:
-
-* What was done well
-* What went wrong
-* Possible decision-making mistakes
-* What could have been done differently
-* Repeated trading patterns
-* Areas to focus on improving
-
-The AI does **not** calculate PNL from market-cap movement. It uses the application's existing trade calculations as the source of truth.
-
-### Summary Periods
-
-The Trade Summary supports:
-
-```text
-This Day
-Week 1
-Week 2
-Week 3
-Week 4
-Previous Month
-```
-
-The four weekly periods are fixed within the selected calendar month:
-
-```text
-Week 1 → Days 1–7
-Week 2 → Days 8–14
-Week 3 → Days 15–21
-Week 4 → Day 22 through the end of the month
-```
-
-There is no Week 5.
-
-The **Previous Month** summary automatically refers to the calendar month immediately before the selected month.
-
-For example:
-
-```text
-October → Previous Month = September
-November → Previous Month = October
-```
-
-Historical trade data is never deleted when the Previous Month period changes.
-
----
-
-## AI Summary Caching
-
-AI summaries are cached locally to avoid unnecessary API requests.
-
-Each summary is associated with its specific period and the underlying trade data.
-
-For example:
-
-```text
-Day:
-2026-09-17
-
-Week:
-2026-09-week-3
-
-Previous Month:
-2026-08
-```
-
-When the underlying trades have not changed, the existing cached summary is reused instead of making another API request.
-
-A summary becomes stale when the relevant trades are:
-
-* Added
-* Edited
-* Deleted
-* Have their reasoning changed
-* Have their Entry changed
-* Have their Out changed
-* Have their Win/Loss changed
-
-Only affected summaries need to be regenerated.
-
-A failed AI request does not remove an existing cached summary.
-
----
-
-## Project Structure
+Get a key at https://aistudio.google.com/apikey. Restart `npm run dev` after
+adding it. Without a key, the rest of the app (calendar, trades, notepad)
+works as normal — only the Trade Summary panel will show an error with a
+Retry button.
+
+## How the numbers work
+
+- **Entry / Out** are the coin's **market cap** at entry and exit — not money
+  invested. They're used only to determine win vs. loss.
+- **Win/Loss** is the raw amount of SOL you enter (always positive, e.g. `3`).
+- The signed result is derived, never stored:
+  - `Out > Entry` → `+winLoss`
+  - `Out < Entry` → `-winLoss`
+  - `Out === Entry` → `0` (break-even)
+- Editing Entry/Out later automatically updates the displayed sign — the stored
+  `winLoss` value never changes.
+- **Daily PNL** is the sum of each trade's derived result.
+- **Daily winrate** is `wins / (wins + losses)`; break-even trades are excluded
+  from both the numerator and denominator.
+- **Practice trades**: entering `0` as Win/Loss on purpose marks a trade as
+  practice (no real SOL was at stake), regardless of what Entry/Out say. A
+  practice trade still shows up in the trade count, but it's excluded from
+  wins/losses/winrate, tagged with a "Practice" badge on its card, and the AI
+  Trade Summary is told which trades are practice so it doesn't score them
+  like real ones.
+- **Watchlist notes** (beside the trade list) are for coins you noticed but
+  never actually traded — separate from both Trade records and the global
+  Notepad. They're included in the AI Trade Summary's context too, but only
+  ever as background, never as if they were a trade with a result.
+
+## Project structure
 
 ```text
 app/
-├── layout.tsx              Root layout, fonts, and global configuration
-├── page.tsx                Top-level application state
-├── globals.css             Design tokens and global styles
-└── api/
-    └── trade-summary/
-        └── route.ts        Server route for Gemini API requests
+  layout.tsx        Root layout, fonts, global styles
+  page.tsx           Top-level state: trades, coin notes, calendar mode/month, selected date
+  globals.css        Design tokens (CSS variables) + Tailwind layers
+  api/
+    trade-summary/    Server route: calls the Gemini API, key never reaches the client
 
 components/
-├── calendar/
-│   ├── Month grid
-│   ├── Day cells
-│   └── PNL / Winrate toggle
-│
-├── trades/
-│   ├── Daily trade table
-│   ├── Trade rows
-│   ├── Market-cap fields
-│   ├── Daily statistics
-│   └── AI Trade Summary
-│
-├── notepad/
-│   ├── Rich-text editor
-│   └── Formatting toolbar
-│
-├── layout/
-│   ├── Header
-│   └── Empty states
-│
-└── ui/
-    └── Shared UI primitives
+  calendar/          Month grid, day cell, PNL/Winrate toggle, trading-reminder modal
+  trades/            Daily trade list (2-row cards: CA/Coin/Why, then
+                     Entry/Out/Win-Loss/+/Delete), market-cap/CA/coin-name/
+                     win-loss fields, watchlist notes panel, stats bar,
+                     Trade Summary (AI journal analyst panel)
+  notepad/           Collapsible rich-text notepad + toolbar
+  layout/            Header, empty state
+  ui/                Small shared primitives (Button, Input)
 
 lib/
-├── types.ts
-│   Trade, DailyStats, CalendarMode,
-│   and Trade Summary types
-│
-├── calculations.ts
-│   Formatting, trade results, daily statistics,
-│   date calculations, week/month ranges,
-│   period statistics, and summary hashing
-│
-└── storage.ts
-    Centralized localStorage persistence for:
-    - Trades
-    - Notepad
-    - AI summary cache
+  types.ts           Trade / CoinNote / DailyStats / CalendarMode / trade-summary types
+  calculations.ts    Pure functions: formatting, trade result, daily/period stats,
+                     practice-trade detection, dates, week/month ranges, staleness hashing
+  storage.ts         localStorage read/write, isolated behind a small API
+                     (trades, coin notes, notepad, and the AI summary cache)
 ```
 
-`lib/storage.ts` is the application's persistence layer. Keeping browser storage isolated there makes it easier to replace `localStorage` with a database such as Supabase or PostgreSQL in the future.
+`lib/storage.ts` is the only place that touches `localStorage`, so swapping in a
+real database later just means rewriting that one file.
 
----
+### How the Trade Summary caches AI results
 
-## Data Storage
+Each period (a day, one of the four fixed weeks in a month, or the previous
+month) has a cache entry keyed by that period plus a hash of the trades *and*
+watchlist notes in it. Switching tabs re-uses the cached result instantly; a
+summary is only regenerated when a trade or note in that exact period is
+added, edited, or deleted (so the hash changes) — never on every tab click,
+and never for unrelated periods. A failed API call never deletes an existing
+cached summary.
 
-Trafer currently stores application data locally in the browser using `localStorage`.
+## Notes
 
-This includes:
-
-* Trade records
-* Notepad content
-* Cached AI summaries
-
-No account or backend database is required for the core journal.
-
-Because the data is stored locally, clearing the browser's site data can remove the journal data.
-
----
-
-## Design
-
-* Dark mode only
-* Desktop-first interface
-* Minimal and focused UI
-* Collapsible panels
-* Responsive trade table
-* No unnecessary dashboards or visualizations
-
----
-
-## What Trafer Does Not Include
-
-Trafer intentionally does not include:
-
-* Live cryptocurrency prices
-* Wallet connections
-* Exchange integrations
-* Trade execution
-* Authentication
-* Social features
-* Automated trading
-* News feeds
-* Price prediction
-* Trading signals
-* Charts
-
-The goal is to keep Trafer focused on one thing:
-
-**recording trades and learning from them.**
+- Dark mode only, by design — no theme switcher.
+- No live prices, wallet connections, exchange integrations, authentication, or
+  charts — this is intentionally just a personal journal.

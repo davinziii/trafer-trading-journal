@@ -52,7 +52,7 @@ export function TradingCalendar({
 
   const today = new Date();
   const todayKey = toDateKey(today.getFullYear(), today.getMonth(), today.getDate());
-  const emptyStats = { pnl: 0, wins: 0, completed: 0, pct: null, tradeCount: 0 };
+  const emptyStats = { pnl: 0, wins: 0, completed: 0, pct: null, tradeCount: 0, practiceCount: 0 };
 
   return (
     <div

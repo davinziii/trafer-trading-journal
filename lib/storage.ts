@@ -1,9 +1,10 @@
-import { SummaryCache, Trade } from "./types";
+import { CoinNote, SummaryCache, Trade } from "./types";
 
 const STORAGE_KEYS = {
   TRADES: "ctj:trades:v1",
   NOTEPAD: "ctj:notepad:v1",
   SUMMARY_CACHE: "ctj:summaryCache:v1",
+  COIN_NOTES: "ctj:coinNotes:v1",
 } as const;
 
 function isBrowser(): boolean {
@@ -71,6 +72,31 @@ export const storage = {
       window.localStorage.setItem(STORAGE_KEYS.SUMMARY_CACHE, JSON.stringify(cache));
     } catch (err) {
       console.error("Failed to save trade summary cache to storage", err);
+    }
+  },
+
+  // Coin notes: watchlist-style notes about coins the user considered but
+  // never actually traded. Deliberately separate from both trades and the
+  // free-form Notepad, with its own storage key.
+  readCoinNotes(): CoinNote[] {
+    if (!isBrowser()) return [];
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEYS.COIN_NOTES);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? (parsed as CoinNote[]) : [];
+    } catch (err) {
+      console.error("Failed to read coin notes from storage", err);
+      return [];
+    }
+  },
+
+  writeCoinNotes(notes: CoinNote[]): void {
+    if (!isBrowser()) return;
+    try {
+      window.localStorage.setItem(STORAGE_KEYS.COIN_NOTES, JSON.stringify(notes));
+    } catch (err) {
+      console.error("Failed to save coin notes to storage", err);
     }
   },
 };
