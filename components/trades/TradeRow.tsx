@@ -2,7 +2,7 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import { Trade, RequiredField } from "@/lib/types";
-import { formatSol, solColorClass, tradeResult } from "@/lib/calculations";
+import { formatAmount, solColorClass, tradeResult } from "@/lib/calculations";
 import { MarketCapField } from "./MarketCapField";
 import { CAField } from "./CAField";
 import { CoinNameField } from "./CoinNameField";
@@ -88,7 +88,7 @@ export function TradeRow({ trade, onUpdate, onDelete, onEnterComplete, onAdd, er
               hasResultInputs ? solColorClass(result) : "text-faint"
             }`}
           >
-            {hasResultInputs ? formatSol(result) : "SOL"}
+            {hasResultInputs ? formatAmount(result) : "SOL"}
           </span>
         </div>
       </td>
