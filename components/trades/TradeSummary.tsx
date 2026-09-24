@@ -1,5 +1,5 @@
 import { DailyStats } from "@/lib/types";
-import { formatPercent, formatSol, solColorClass } from "@/lib/calculations";
+import { formatAmount, formatPercent, pnlEntries, solColorClass } from "@/lib/calculations";
 
 type TradeSummaryProps = {
   stats: DailyStats;
@@ -7,14 +7,23 @@ type TradeSummaryProps = {
 
 export function TradeSummary({ stats }: TradeSummaryProps) {
   const pctLabel = formatPercent(stats.pct);
+  const pnlList = stats.tradeCount ? pnlEntries(stats.pnl) : [];
 
   return (
     <div className="rounded-lg border border-border-soft bg-surface px-4 py-3 flex flex-wrap items-center gap-x-8 gap-y-2">
       <div>
         <div className="text-xs mb-0.5 text-faint">PNL</div>
-        <div className={`font-mono text-lg font-medium ${stats.tradeCount ? solColorClass(stats.pnl) : "text-faint"}`}>
-          {stats.tradeCount ? formatSol(stats.pnl) : "—"}
-        </div>
+        {pnlList.length > 0 ? (
+          <div className="flex flex-col gap-0.5">
+            {pnlList.map(([currency, amount]) => (
+              <div key={currency} className={`font-mono text-lg font-medium ${solColorClass(amount)}`}>
+                {formatAmount(amount, currency)}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="font-mono text-lg font-medium text-faint">—</div>
+        )}
       </div>
       <div>
         <div className="text-xs mb-0.5 text-faint">Winrate</div>

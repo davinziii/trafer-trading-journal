@@ -1,5 +1,5 @@
 import { CalendarMode, DailyStats } from "@/lib/types";
-import { formatPercent, formatSol, solColorClass } from "@/lib/calculations";
+import { formatAmount, formatPercent, pnlEntries, solColorClass } from "@/lib/calculations";
 
 type CalendarDayProps = {
   day: number | null;
@@ -16,16 +16,8 @@ export function CalendarDay({ day, dateKey, stats, mode, isSelected, isToday, on
     return <div className="aspect-day" />;
   }
 
-  let display: string | null = null;
-  let colorClass = "text-faint";
-
-  if (mode === "pnl" && stats.tradeCount > 0) {
-    display = formatSol(stats.pnl);
-    colorClass = solColorClass(stats.pnl);
-  } else if (mode === "winrate" && stats.completed > 0) {
-    display = formatPercent(stats.pct);
-    colorClass = "text-rate";
-  }
+  const pnlList = mode === "pnl" && stats.tradeCount > 0 ? pnlEntries(stats.pnl) : [];
+  const winrateLabel = mode === "winrate" && stats.completed > 0 ? formatPercent(stats.pct) : null;
 
   return (
     <button
@@ -43,8 +35,19 @@ export function CalendarDay({ day, dateKey, stats, mode, isSelected, isToday, on
       >
         {day}
       </span>
-      {display ? (
-        <span className={`font-mono text-[9px] font-medium leading-tight truncate ${colorClass}`}>{display}</span>
+      {pnlList.length > 0 ? (
+        <span className="flex flex-col leading-tight min-w-0">
+          {pnlList.map(([currency, amount]) => (
+            <span
+              key={currency}
+              className={`font-mono text-[9px] font-medium truncate ${solColorClass(amount)}`}
+            >
+              {formatAmount(amount, currency)}
+            </span>
+          ))}
+        </span>
+      ) : winrateLabel ? (
+        <span className="font-mono text-[9px] font-medium leading-tight truncate text-rate">{winrateLabel}</span>
       ) : (
         <span />
       )}

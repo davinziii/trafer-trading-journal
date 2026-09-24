@@ -137,6 +137,7 @@ export function DailyTrades({ dateKey, trades, onChange, coinNotes, onChangeCoin
 
       <div className="flex flex-col lg:flex-row gap-4 items-start">
         <CoinNotesPanel dateKey={dateKey} notes={coinNotes} onChange={onChangeCoinNotes} />
+
         <div className="flex-1 min-w-0 w-full">
           {dayTrades.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-faint">
@@ -153,7 +154,7 @@ export function DailyTrades({ dateKey, trades, onChange, coinNotes, onChangeCoin
             />
           )}
         </div>
-        
+
       </div>
     </div>
   );

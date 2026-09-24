@@ -13,14 +13,15 @@ import {
 import {
   MONTHS,
   computePeriodStats,
+  formatAmount,
   formatLongDate,
   formatPercent,
-  formatSol,
   getPreviousMonth,
   getWeekRanges,
   hashPeriodData,
   notesInMonth,
   notesInRange,
+  pnlEntries,
   solColorClass,
   toDateKey,
   toSummaryRequestNotes,
@@ -307,9 +308,17 @@ export function TradeInsights({ trades, coinNotes, selectedDate }: TradeInsights
                   <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
                     <div>
                       <div className="text-xs mb-0.5 text-faint">PNL</div>
-                      <div className={`font-mono text-lg font-medium ${solColorClass(stats.pnl)}`}>
-                        {formatSol(stats.pnl)}
-                      </div>
+                      {pnlEntries(stats.pnl).length > 0 ? (
+                        <div className="flex flex-col gap-0.5">
+                          {pnlEntries(stats.pnl).map(([currency, amount]) => (
+                            <div key={currency} className={`font-mono text-lg font-medium ${solColorClass(amount)}`}>
+                              {formatAmount(amount, currency)}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="font-mono text-lg font-medium text-faint">—</div>
+                      )}
                     </div>
                     <div>
                       <div className="text-xs mb-0.5 text-faint">Winrate</div>

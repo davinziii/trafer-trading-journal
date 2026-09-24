@@ -1,5 +1,7 @@
 import {
   CoinNote,
+  Currency,
+  CurrencyPnl,
   DailyStats,
   PeriodStats,
   RequiredField,
@@ -24,12 +26,12 @@ export function formatMarketCap(value: number): string {
   return "$" + trim(n);
 }
 
-/** Formats a signed SOL amount, e.g. 3.5 -> "+3.5 SOL", -2 -> "-2 SOL", 0 -> "0 SOL". */
-export function formatSol(amount: number): string {
+/** Formats a signed amount in the given currency, e.g. (3.5, "BNB") -> "+3.5 BNB". Defaults to SOL. */
+export function formatAmount(amount: number, currency: Currency = "SOL"): string {
   const rounded = Math.round(amount * 100) / 100;
   const abs = Math.abs(rounded);
   const sign = rounded > 0 ? "+" : rounded < 0 ? "-" : "";
-  return `${sign}${abs} SOL`;
+  return `${sign}${abs} ${currency}`;
 }
 
 /** Formats a 0-100 percentage, trimming to one decimal only when needed. */
@@ -46,6 +48,40 @@ export function truncateAddress(value: string): string {
   return `${v.slice(0, 4)}...${v.slice(-4)}`;
 }
 
+/* ---------------------------------- contract address / dexscreener ---------------------------------- */
+
+/**
+ * What an entered CA looks like once validated by length/shape:
+ * - "empty": nothing entered yet.
+ * - "solana": 43-44 characters — assumed Solana, no further input needed.
+ * - "evm": starts with "0x" and is exactly 42 characters — BSC and
+ *   Robinhood tokens share this exact shape, so this alone can't tell them
+ *   apart (see CAField's chain-picker modal, which asks the user).
+ * - "invalid": non-empty but matches neither length rule.
+ */
+export type AddressKind = "empty" | "solana" | "evm" | "invalid";
+
+export function detectAddressKind(address: string): AddressKind {
+  const v = address.trim();
+  if (!v) return "empty";
+  if (v.startsWith("0x")) return v.length === 42 ? "evm" : "invalid";
+  return v.length === 43 || v.length === 44 ? "solana" : "invalid";
+}
+
+/** The concrete chain a CA has been resolved to — what we link to and price Win/Loss in. */
+export type ResolvedChain = "solana" | "bsc" | "robinhood";
+
+export function dexscreenerUrl(address: string, chain: ResolvedChain): string {
+  return `https://dexscreener.com/${chain}/${address.trim()}`;
+}
+
+/** Which currency a trade's Win/Loss is in, based on its CA's resolved chain. Solana (or no CA yet) is SOL. */
+export function currencyForChain(chain?: ResolvedChain): Currency {
+  if (chain === "bsc") return "BNB";
+  if (chain === "robinhood") return "ETH";
+  return "SOL";
+}
+
 /**
  * Entry/Out market caps are always in the thousands, so a bare small number
  * is assumed to be shorthand for that: typing 48.6 means $48.6K (48600),
@@ -57,11 +93,19 @@ export function interpretMarketCapInput(raw: number): number {
   return raw < 1000 ? raw * 1000 : raw;
 }
 
-/** Tailwind text-color utility class for a signed SOL amount. */
+/** Tailwind text-color utility class for a signed amount, regardless of currency. */
 export function solColorClass(amount: number): string {
   if (amount > 0) return "text-win";
   if (amount < 0) return "text-loss";
   return "text-neutral";
+}
+
+/** Currency display order used everywhere a CurrencyPnl is rendered. */
+const CURRENCY_ORDER: Currency[] = ["SOL", "BNB", "ETH"];
+
+/** Turns a CurrencyPnl into an ordered [currency, amount] list of only the currencies actually traded. */
+export function pnlEntries(pnl: CurrencyPnl): [Currency, number][] {
+  return CURRENCY_ORDER.filter((c) => pnl[c] !== undefined).map((c) => [c, pnl[c] as number]);
 }
 
 /* ---------------------------------- trade math ---------------------------------- */
@@ -97,10 +141,9 @@ export function isPracticeTrade(t: Pick<Trade, "winLoss" | "winLossTouched">): b
   return !!t.winLossTouched && t.winLoss === 0;
 }
 
-/** Whether a trade has all required fields validly filled in. */
+/** Whether a trade has all required fields validly filled in. CA is optional. */
 export function isTradeStructurallyComplete(t: Trade): boolean {
   return (
-    t.ca.trim() !== "" &&
     t.coinName.trim() !== "" &&
     t.reason.trim() !== "" &&
     isFinite(t.entry) &&
@@ -113,10 +156,9 @@ export function isTradeStructurallyComplete(t: Trade): boolean {
   );
 }
 
-/** Returns the list of required fields that are still missing/invalid on a trade. */
+/** Returns the list of required fields that are still missing/invalid on a trade. CA is optional. */
 export function getMissingFields(t: Trade): RequiredField[] {
   const missing: RequiredField[] = [];
-  if (t.ca.trim() === "") missing.push("ca");
   if (t.coinName.trim() === "") missing.push("coinName");
   if (t.reason.trim() === "") missing.push("reason");
   if (!isFinite(t.entry) || t.entry <= 0) missing.push("entry");
@@ -125,16 +167,17 @@ export function getMissingFields(t: Trade): RequiredField[] {
   return missing;
 }
 
-/** Aggregates a day's trades into PNL + winrate stats. Break-even and practice trades are excluded from winrate. */
+/** Aggregates a day's trades into per-currency PNL + winrate stats. Break-even and practice trades are excluded from winrate. */
 export function computeDailyStats(dayTrades: Trade[]): DailyStats {
   const complete = dayTrades.filter(isTradeStructurallyComplete);
-  let pnl = 0;
+  const pnl: CurrencyPnl = {};
   let wins = 0;
   let completed = 0;
   let practiceCount = 0;
 
   for (const t of complete) {
-    pnl += tradeResult(t);
+    const currency = currencyForChain(t.caChain);
+    pnl[currency] = (pnl[currency] ?? 0) + tradeResult(t);
     if (isPracticeTrade(t)) {
       practiceCount++;
       continue;
@@ -251,10 +294,11 @@ export function computePeriodStats(periodTrades: Trade[]): PeriodStats {
   let losses = 0;
   let breakEven = 0;
   let practice = 0;
-  let pnl = 0;
+  const pnl: CurrencyPnl = {};
 
   for (const t of complete) {
-    pnl += tradeResult(t);
+    const currency = currencyForChain(t.caChain);
+    pnl[currency] = (pnl[currency] ?? 0) + tradeResult(t);
     if (isPracticeTrade(t)) {
       practice++;
       continue;
@@ -279,7 +323,9 @@ export function hashTrades(periodTrades: Trade[]): string {
   const normalized = periodTrades
     .slice()
     .sort((a, b) => a.id.localeCompare(b.id))
-    .map((t) => [t.id, t.date, t.coinName, t.reason, t.entry, t.out, t.winLoss, !!t.winLossTouched].join("|"))
+    .map((t) =>
+      [t.id, t.date, t.coinName, t.reason, t.entry, t.out, t.winLoss, !!t.winLossTouched, t.caChain ?? ""].join("|")
+    )
     .join("~");
 
   let h = 0;
@@ -325,6 +371,7 @@ export function toSummaryRequestTrades(periodTrades: Trade[]): SummaryRequestTra
       entry: t.entry,
       out: t.out,
       winLoss: t.winLoss,
+      currency: currencyForChain(t.caChain),
       result: tradeResult(t),
       outcome: tradeOutcome(t),
       isPractice: isPracticeTrade(t),

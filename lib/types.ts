@@ -3,7 +3,25 @@ export type Trade = {
   /** ISO date key, e.g. "2026-09-17" */
   date: string;
 
+  /** Contract address — optional. */
   ca: string;
+  /**
+   * The chain the CA was resolved to, once validated:
+   * - "solana": detected automatically from address shape (43-44 chars).
+   * - "bsc" / "robinhood": both use the same 42-char "0x..." shape, so these
+   *   are only ever set from the user's answer in the chain-picker modal.
+   * Drives both the dexscreener link and the Win/Loss currency (SOL/BNB/ETH).
+   * Cleared back to undefined whenever the CA becomes empty or invalid.
+   */
+  caChain?: "solana" | "bsc" | "robinhood";
+  /**
+   * Whether the "remember this for this coin" box was checked when caChain
+   * was last set for an EVM-style address. If false, the chain-picker modal
+   * asks again the next time this trade's CA field is validated (blurred),
+   * even though caChain is already set — so the answer above is used for
+   * "right now" but isn't treated as durable until the user opts in.
+   */
+  caChainRemembered?: boolean;
   coinName: string;
   reason: string;
 
@@ -20,9 +38,20 @@ export type Trade = {
 
 export type CalendarMode = "pnl" | "winrate";
 
+/** The three currencies a trade's Win/Loss can be in, based on its CA's chain. */
+export type Currency = "SOL" | "BNB" | "ETH";
+
+/**
+ * Signed PNL summed per currency. A currency key is present if and only if
+ * at least one completed trade in the period used that currency — so a
+ * trader who only ever trades Solana coins only ever sees "SOL", never a
+ * "0 BNB" / "0 ETH" they never touched.
+ */
+export type CurrencyPnl = Partial<Record<Currency, number>>;
+
 export type DailyStats = {
-  /** Signed daily PNL in SOL. */
-  pnl: number;
+  /** Signed daily PNL, split per currency actually traded that day. */
+  pnl: CurrencyPnl;
   wins: number;
   completed: number;
   /** Win percentage 0-100, or null when there are no completed trades. */
@@ -33,7 +62,8 @@ export type DailyStats = {
   practiceCount: number;
 };
 
-export type RequiredField = "ca" | "coinName" | "reason" | "entry" | "out" | "winLoss";
+// "ca" (contract address) is intentionally not in here — it's optional on a trade.
+export type RequiredField = "coinName" | "reason" | "entry" | "out" | "winLoss";
 
 /**
  * A note about a coin the trader watched or considered but never actually
@@ -63,7 +93,8 @@ export type PeriodStats = {
   practice: number;
   /** Win percentage over decided (non-break-even, non-practice) trades, or null if none. */
   winratePct: number | null;
-  pnl: number;
+  /** Signed PNL, split per currency actually traded in the period. */
+  pnl: CurrencyPnl;
 };
 
 /** The structured content an AI-generated trade summary is rendered from. */
@@ -87,6 +118,8 @@ export type SummaryRequestTrade = {
   entry: number;
   out: number;
   winLoss: number;
+  /** Which currency winLoss/result are in — depends on the coin's chain (SOL/BNB/ETH). */
+  currency: Currency;
   result: number;
   outcome: "win" | "loss" | "even";
   /** True when the trader logged this as a 0 SOL practice trade — no real stake. */

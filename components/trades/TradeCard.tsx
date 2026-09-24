@@ -1,9 +1,8 @@
 "use client";
 
 import { ReactNode } from "react";
-import { Plus, Trash2 } from "lucide-react";
 import { Trade, RequiredField } from "@/lib/types";
-import { formatSol, isPracticeTrade, solColorClass, tradeResult } from "@/lib/calculations";
+import { formatAmount, currencyForChain, isPracticeTrade, solColorClass, tradeResult } from "@/lib/calculations";
 import { MarketCapField } from "./MarketCapField";
 import { CAField } from "./CAField";
 import { CoinNameField } from "./CoinNameField";
@@ -32,6 +31,7 @@ export function TradeCard({ trade, onUpdate, onDelete, onEnterComplete, onAdd, e
   const result = tradeResult(trade);
   const hasResultInputs = trade.entry > 0 && trade.out > 0;
   const practice = isPracticeTrade(trade);
+  const currency = currencyForChain(trade.caChain);
   const err = (field: RequiredField) => errors.includes(field);
 
   // Enter inside any single-line field blurs it first (so a Market-cap or
@@ -55,7 +55,15 @@ export function TradeCard({ trade, onUpdate, onDelete, onEnterComplete, onAdd, e
       {/* Row 1: CA, Coin, Why I picked it */}
       <div className="flex flex-wrap items-start gap-2">
         <Field label="CA">
-          <CAField value={trade.ca} error={err("ca")} onChange={(v) => onUpdate({ ...trade, ca: v })} />
+          <CAField
+            value={trade.ca}
+            chain={trade.caChain}
+            chainRemembered={trade.caChainRemembered}
+            onChange={(v) => onUpdate({ ...trade, ca: v })}
+            onChainChange={(newChain, remembered) =>
+              onUpdate({ ...trade, caChain: newChain, caChainRemembered: remembered })
+            }
+          />
         </Field>
         <Field label="Coin">
           <CoinNameField
@@ -96,7 +104,7 @@ export function TradeCard({ trade, onUpdate, onDelete, onEnterComplete, onAdd, e
                 hasResultInputs ? solColorClass(result) : "text-faint"
               }`}
             >
-              {hasResultInputs ? formatSol(result) : "SOL"}
+              {hasResultInputs ? formatAmount(result, currency) : currency}
             </span>
           </div>
         </Field>
@@ -107,21 +115,18 @@ export function TradeCard({ trade, onUpdate, onDelete, onEnterComplete, onAdd, e
           </span>
         )}
 
-        <div className="ml-auto flex items-center gap-1 self-center">
+        <div className="ml-auto flex items-center gap-1.5 self-center">
           <button
             onClick={onAdd}
-            aria-label="Save this coin and add another"
-            title="Save this coin and add another"
-            className="p-1.5 rounded-md text-faint hover:text-win transition-colors"
+            className="text-xs font-medium rounded-md px-2.5 py-1.5 text-faint hover:text-win hover:bg-win/10 transition-colors"
           >
-            <Plus size={15} />
+            Add more
           </button>
           <button
             onClick={onDelete}
-            aria-label="Remove trade"
-            className="p-1.5 rounded-md text-faint hover:text-loss transition-colors"
+            className="text-xs font-medium rounded-md px-2.5 py-1.5 text-faint hover:text-loss hover:bg-loss/10 transition-colors"
           >
-            <Trash2 size={15} />
+            Delete
           </button>
         </div>
       </div>
