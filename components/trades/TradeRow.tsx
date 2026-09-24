@@ -2,7 +2,7 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import { Trade, RequiredField } from "@/lib/types";
-import { formatAmount, solColorClass, tradeResult } from "@/lib/calculations";
+import { currencyForChain, formatAmount, solColorClass, tradeResult } from "@/lib/calculations";
 import { MarketCapField } from "./MarketCapField";
 import { CAField } from "./CAField";
 import { CoinNameField } from "./CoinNameField";
@@ -21,12 +21,9 @@ type TradeRowProps = {
 export function TradeRow({ trade, onUpdate, onDelete, onEnterComplete, onAdd, errors = [] }: TradeRowProps) {
   const result = tradeResult(trade);
   const hasResultInputs = trade.entry > 0 && trade.out > 0;
+  const currency = currencyForChain(trade.caChain);
   const err = (field: RequiredField) => errors.includes(field);
 
-  // Enter inside any single-line field blurs it first (so a Market-cap or
-  // Win/Loss value mid-edit gets committed), then asks the parent to check
-  // whether the row is now fully filled in. The "why I picked it" textarea
-  // is excluded so Enter still just makes a new line there.
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTableRowElement>) => {
     if (e.key !== "Enter") return;
     const target = e.target as HTMLElement;
@@ -41,8 +38,12 @@ export function TradeRow({ trade, onUpdate, onDelete, onEnterComplete, onAdd, er
       <td className="py-1.5 pr-2">
         <CAField
           value={trade.ca}
-          error={err("ca")}
+          chain={trade.caChain}
+          chainRemembered={trade.caChainRemembered}
           onChange={(v) => onUpdate({ ...trade, ca: v })}
+          onChainChange={(newChain, remembered) =>
+            onUpdate({ ...trade, caChain: newChain, caChainRemembered: remembered })
+          }
         />
       </td>
       <td className="py-1.5 pr-2">
@@ -88,7 +89,7 @@ export function TradeRow({ trade, onUpdate, onDelete, onEnterComplete, onAdd, er
               hasResultInputs ? solColorClass(result) : "text-faint"
             }`}
           >
-            {hasResultInputs ? formatAmount(result) : "SOL"}
+            {hasResultInputs ? formatAmount(result, currency) : currency}
           </span>
         </div>
       </td>
