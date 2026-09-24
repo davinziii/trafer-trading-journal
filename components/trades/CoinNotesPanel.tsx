@@ -54,7 +54,7 @@ export function CoinNotesPanel({ dateKey, notes, onChange }: CoinNotesPanelProps
           onClick={addNote}
           className="text-xs font-medium rounded-md px-2 py-1 text-faint hover:text-win hover:bg-win/10 transition-colors flex-shrink-0"
         >
-          Add more
+          + Add Notes
         </button>
       </div>
 
@@ -83,7 +83,7 @@ export function CoinNotesPanel({ dateKey, notes, onChange }: CoinNotesPanelProps
                   onClick={() => deleteNote(n.id)}
                   className="text-[11px] font-medium rounded-md px-2 py-1 text-faint hover:text-loss hover:bg-loss/10 transition-colors"
                 >
-                  Delete
+                  - Delete
                 </button>
               </div>
             </div>

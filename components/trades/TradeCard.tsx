@@ -120,13 +120,13 @@ export function TradeCard({ trade, onUpdate, onDelete, onEnterComplete, onAdd, e
             onClick={onAdd}
             className="text-xs font-medium rounded-md px-2.5 py-1.5 text-faint hover:text-win hover:bg-win/10 transition-colors"
           >
-            Add more
+            + Add More
           </button>
           <button
             onClick={onDelete}
             className="text-xs font-medium rounded-md px-2.5 py-1.5 text-faint hover:text-loss hover:bg-loss/10 transition-colors"
           >
-            Delete
+            - Delete
           </button>
         </div>
       </div>
