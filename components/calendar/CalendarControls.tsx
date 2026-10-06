@@ -1,19 +1,24 @@
 import { CalendarMode } from "@/lib/types";
 
-type CalendarControlsProps = {
-  mode: CalendarMode;
-  setMode: (mode: CalendarMode) => void;
+export type CalendarOption<T extends string> = { key: T; label: string };
+
+type CalendarControlsProps<T extends string = CalendarMode> = {
+  mode: T;
+  setMode: (mode: T) => void;
+  /** Defaults to the journal's Winrate / PNL toggle. /thesis passes its own. */
+  options?: CalendarOption<T>[];
 };
 
-const OPTIONS: { key: CalendarMode; label: string }[] = [
+const OPTIONS: CalendarOption<CalendarMode>[] = [
   { key: "winrate", label: "Winrate" },
   { key: "pnl", label: "PNL" },
 ];
 
-export function CalendarControls({ mode, setMode }: CalendarControlsProps) {
+export function CalendarControls<T extends string = CalendarMode>({ mode, setMode, options }: CalendarControlsProps<T>) {
+  const opts = (options ?? (OPTIONS as unknown as CalendarOption<T>[]));
   return (
     <div className="inline-flex rounded-md border border-border bg-surface-2">
-      {OPTIONS.map((opt) => (
+      {opts.map((opt) => (
         <button
           key={opt.key}
           onClick={() => setMode(opt.key)}

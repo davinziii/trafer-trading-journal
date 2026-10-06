@@ -14,7 +14,7 @@ type TradeListProps = {
 
 export function TradeList({ trades, onUpdate, onDelete, onRowEnter, onAddRow, rowErrors }: TradeListProps) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {trades.map((t) => (
         <TradeCard
           key={t.id}

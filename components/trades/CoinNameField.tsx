@@ -2,11 +2,13 @@ type CoinNameFieldProps = {
   value: string;
   onChange: (value: string) => void;
   error?: boolean;
+  /** Width/extra classes for the wrapper; replaces the default w-24. */
+  className?: string;
 };
 
-export function CoinNameField({ value, onChange, error }: CoinNameFieldProps) {
+export function CoinNameField({ value, onChange, error, className = "w-24" }: CoinNameFieldProps) {
   return (
-    <div className="relative w-24">
+    <div className={`relative ${className}`}>
       <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-faint pointer-events-none select-none">
         $
       </span>

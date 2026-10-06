@@ -258,13 +258,11 @@ export function TradeInsights({ trades, coinNotes, selectedDate }: TradeInsights
   };
 
   return (
-    <div
-      onClick={() => setOpen((o) => !o)}
-      className="w-full flex-1 min-w-0 rounded-xl border border-border-soft bg-surface p-5 cursor-pointer"
-    >
-      {/* No onClick here — the click bubbles up to the card's onClick above,
-          so the whole card stays the single source of truth for toggling. */}
+    <div className="w-full flex-1 min-w-0 rounded-xl border border-border-soft bg-surface p-4 sm:p-5">
+      {/* Only the header toggles — clicking inside the content (e.g. selecting AI text) must not collapse the card. */}
       <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-2 text-dim hover:text-ink transition-colors"
         aria-expanded={open}
       >
@@ -279,12 +277,14 @@ export function TradeInsights({ trades, coinNotes, selectedDate }: TradeInsights
       {open && (
         <>
           {/* Stops tab clicks from bubbling up and collapsing the card. */}
-          <div className="flex flex-wrap gap-1 mt-4" onClick={(e) => e.stopPropagation()}>
+          <div className="flex gap-1 mt-4 overflow-x-auto scrollbar-thin -mx-1 px-1 pb-1" role="tablist" onClick={(e) => e.stopPropagation()}>
             {TABS.map((tab) => (
               <button
                 key={tab.id}
+                role="tab"
+                aria-selected={activeTab === tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`text-xs font-medium px-2.5 py-1.5 rounded-md transition-colors ${
+                className={`text-xs font-medium px-2.5 py-1.5 rounded-md whitespace-nowrap transition-colors ${
                   activeTab === tab.id ? "bg-surface-3 text-ink" : "text-faint hover:text-dim"
                 }`}
               >
@@ -305,7 +305,7 @@ export function TradeInsights({ trades, coinNotes, selectedDate }: TradeInsights
               <div className="space-y-4">
                 <div>
                   <div className="text-xs mb-2 text-faint">{labels.performance}</div>
-                  <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                     <div>
                       <div className="text-xs mb-0.5 text-faint">PNL</div>
                       {pnlEntries(stats.pnl).length > 0 ? (

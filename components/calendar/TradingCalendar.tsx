@@ -5,22 +5,32 @@ import { ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { CalendarMode, Trade } from "@/lib/types";
 import { MONTHS, WEEKDAYS, computeDailyStats, toDateKey } from "@/lib/calculations";
 import { CalendarControls } from "./CalendarControls";
-import { CalendarDay } from "./CalendarDay";
+import { ReactNode } from "react";
+import { CalendarDay, CalendarDayLabel } from "./CalendarDay";
 
 type TradingCalendarProps = {
-  trades: Trade[];
-  mode: CalendarMode;
-  setMode: (mode: CalendarMode) => void;
+  /** Journal trades. Optional so /thesis can reuse the calendar with its own day labels. */
+  trades?: Trade[];
+  mode?: CalendarMode;
+  setMode?: (mode: CalendarMode) => void;
+  /** Replaces the Winrate/PNL toggle (used by /thesis). */
+  controls?: ReactNode;
+  /** Custom text per date key (used by /thesis). A date with no key renders empty. */
+  dayLabels?: Record<string, CalendarDayLabel[]>;
   currentMonth: Date;
   setCurrentMonth: (date: Date) => void;
   selectedDate: string | null;
   onSelectDate: (dateKey: string) => void;
 };
 
+const NO_TRADES: Trade[] = [];
+
 export function TradingCalendar({
-  trades,
-  mode,
+  trades = NO_TRADES,
+  mode = "pnl",
   setMode,
+  controls,
+  dayLabels,
   currentMonth,
   setCurrentMonth,
   selectedDate,
@@ -55,14 +65,12 @@ export function TradingCalendar({
   const emptyStats = { pnl: {}, wins: 0, completed: 0, pct: null, tradeCount: 0, practiceCount: 0 };
 
   return (
-    <div
-      onClick={() => setOpen((o) => !o)}
-      className="w-full max-w-sm rounded-xl border border-border-soft bg-surface p-[17px] cursor-pointer transition-all"
-    >
+    <div className="w-full sm:max-w-sm sm:w-[22rem] flex-shrink-0 rounded-xl border border-border-soft bg-surface p-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        {/* No onClick here — the click bubbles up to the card's onClick above,
-            so the whole card stays the single source of truth for toggling. */}
+        {/* Only the header toggles — clicking a day or the padding must not collapse the card. */}
         <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
           className="flex items-center gap-1.5 text-dim hover:text-ink transition-colors"
           aria-expanded={open}
         >
@@ -75,7 +83,7 @@ export function TradingCalendar({
         </button>
         {/* Stops clicks on the mode toggle from bubbling up and triggering the whole-card toggle above. */}
         <div onClick={(e) => e.stopPropagation()}>
-          <CalendarControls mode={mode} setMode={setMode} />
+          {controls ?? (setMode ? <CalendarControls mode={mode} setMode={setMode} /> : null)}
         </div>
       </div>
 
@@ -120,6 +128,7 @@ export function TradingCalendar({
               return (
                 <CalendarDay
                   key={i}
+                  labels={dayLabels ? (dateKey ? dayLabels[dateKey] ?? [] : []) : undefined}
                   day={d}
                   dateKey={dateKey}
                   stats={(dateKey && statsByDate[dateKey]) || emptyStats}

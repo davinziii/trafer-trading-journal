@@ -8,11 +8,13 @@ type MarketCapFieldProps = {
   onChange: (value: number) => void;
   error?: boolean;
   placeholder?: string;
+  /** Width/extra classes; replaces the default w-24. */
+  className?: string;
 };
 
 const NUMERIC_PATTERN = /^[0-9]*\.?[0-9]*$/;
 
-export function MarketCapField({ value, onChange, error, placeholder }: MarketCapFieldProps) {
+export function MarketCapField({ value, onChange, error, placeholder, className = "w-24" }: MarketCapFieldProps) {
   const [focused, setFocused] = useState(false);
   const [raw, setRaw] = useState(value > 0 ? String(value) : "");
 
@@ -41,7 +43,7 @@ export function MarketCapField({ value, onChange, error, placeholder }: MarketCa
         const n = parseFloat(raw);
         onChange(interpretMarketCapInput(n));
       }}
-      className={`font-mono w-24 bg-surface-2 text-sm text-ink px-2 py-1.5 rounded-md border transition-colors ${
+      className={`font-mono ${className} bg-surface-2 text-sm text-ink px-2 py-1.5 rounded-md border transition-colors ${
         error ? "border-danger" : "border-border"
       }`}
     />

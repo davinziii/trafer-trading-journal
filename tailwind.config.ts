@@ -1,31 +1,35 @@
 import type { Config } from "tailwindcss";
 
+// Colours are CSS variables, which Tailwind can't add alpha to on its own — `bg-win/10`,
+// `text-faint/40` etc. would silently produce no CSS. color-mix() makes the opacity modifier work.
+const v = (name: string) => `color-mix(in srgb, var(--${name}) calc(<alpha-value> * 100%), transparent)`;
+
 const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./lib/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        bg: "var(--bg)",
-        surface: "var(--surface)",
-        "surface-2": "var(--surface-2)",
-        "surface-3": "var(--surface-3)",
+        bg: v("bg"),
+        surface: v("surface"),
+        "surface-2": v("surface-2"),
+        "surface-3": v("surface-3"),
         border: {
-          DEFAULT: "var(--border)",
-          soft: "var(--border-soft)",
+          DEFAULT: v("border"),
+          soft: v("border-soft"),
         },
-        ink: "var(--text)",
-        dim: "var(--text-dim)",
-        faint: "var(--text-faint)",
+        ink: v("text"),
+        dim: v("text-dim"),
+        faint: v("text-faint"),
         accent: {
-          DEFAULT: "var(--accent)",
-          hover: "var(--accent-hover)",
-          soft: "var(--accent-soft)",
+          DEFAULT: v("accent"),
+          hover: v("accent-hover"),
+          soft: v("accent-soft"),
         },
-        win: "var(--green)",
-        loss: "var(--red)",
-        rate: "var(--blue)",
-        neutral: "var(--neutral)",
-        danger: "var(--danger-border)",
+        win: v("green"),
+        loss: v("red"),
+        rate: v("blue"),
+        neutral: v("neutral"),
+        danger: v("danger-border"),
       },
       fontFamily: {
         serif: ["var(--font-serif)", "Georgia", "serif"],

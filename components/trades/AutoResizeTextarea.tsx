@@ -13,12 +13,28 @@ export function AutoResizeTextarea({ error, className = "", value, ...props }: A
     const el = ref.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
+    // border-box sizing: add the borders back so the last line isn't clipped.
+    el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
   };
 
   useEffect(() => {
     resize();
   }, [value]);
+
+  // Re-measure when the width changes (layout settling, window resize) — otherwise a height
+  // measured while the box was narrow sticks and leaves a tall empty textarea.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    let lastWidth = el.clientWidth;
+    const ro = new ResizeObserver(() => {
+      if (el.clientWidth === lastWidth) return;
+      lastWidth = el.clientWidth;
+      resize();
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   return (
     <textarea

@@ -1,3 +1,4 @@
+import { ReactNode } from "react";
 import { DailyStats } from "@/lib/types";
 import { formatAmount, formatPercent, pnlEntries, solColorClass } from "@/lib/calculations";
 
@@ -5,42 +6,51 @@ type TradeSummaryProps = {
   stats: DailyStats;
 };
 
+function StatTile({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="rounded-md border border-border-soft bg-surface px-3 py-2 min-w-0">
+      <div className="text-[10px] font-medium uppercase tracking-wide text-faint mb-0.5">{title}</div>
+      <div className="font-mono text-lg font-medium leading-tight">{children}</div>
+    </div>
+  );
+}
+
 export function TradeSummary({ stats }: TradeSummaryProps) {
   const pctLabel = formatPercent(stats.pct);
   const pnlList = stats.tradeCount ? pnlEntries(stats.pnl) : [];
 
   return (
-    <div className="rounded-lg border border-border-soft bg-surface px-4 py-3 flex flex-wrap items-center gap-x-8 gap-y-2">
-      <div>
-        <div className="text-xs mb-0.5 text-faint">PNL</div>
+    <div className={`grid gap-2 grid-cols-2 ${stats.practiceCount > 0 ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
+      <StatTile title="PNL">
         {pnlList.length > 0 ? (
           <div className="flex flex-col gap-0.5">
             {pnlList.map(([currency, amount]) => (
-              <div key={currency} className={`font-mono text-lg font-medium ${solColorClass(amount)}`}>
+              <span key={currency} className={solColorClass(amount)}>
                 {formatAmount(amount, currency)}
-              </div>
+              </span>
             ))}
           </div>
         ) : (
-          <div className="font-mono text-lg font-medium text-faint">—</div>
+          <span className="text-faint">—</span>
         )}
-      </div>
-      <div>
-        <div className="text-xs mb-0.5 text-faint">Winrate</div>
-        <div className={`font-mono text-lg font-medium ${pctLabel ? "text-rate" : "text-faint"}`}>
-          {stats.completed > 0 ? `${stats.wins} / ${stats.completed}` : "—"}
-          {pctLabel ? <span className="text-sm ml-2">{pctLabel}</span> : null}
-        </div>
-      </div>
-      <div>
-        <div className="text-xs mb-0.5 text-faint">Trades</div>
-        <div className="font-mono text-lg font-medium text-ink">{stats.tradeCount}</div>
-      </div>
+      </StatTile>
+      <StatTile title="Winrate">
+        {stats.completed > 0 ? (
+          <span className="text-rate">
+            {stats.wins} / {stats.completed}
+            {pctLabel && <span className="text-sm ml-2 opacity-80">{pctLabel}</span>}
+          </span>
+        ) : (
+          <span className="text-faint">—</span>
+        )}
+      </StatTile>
+      <StatTile title="Trades">
+        <span className="text-ink">{stats.tradeCount}</span>
+      </StatTile>
       {stats.practiceCount > 0 && (
-        <div>
-          <div className="text-xs mb-0.5 text-faint">Practice</div>
-          <div className="font-mono text-lg font-medium text-rate">{stats.practiceCount}</div>
-        </div>
+        <StatTile title="Practice">
+          <span className="text-rate">{stats.practiceCount}</span>
+        </StatTile>
       )}
     </div>
   );

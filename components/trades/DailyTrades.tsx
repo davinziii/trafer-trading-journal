@@ -13,6 +13,7 @@ import { TradeList } from "./TradeList";
 import { TradeSummary } from "./TradeSummary";
 import { CoinNotesPanel } from "./CoinNotesPanel";
 import { Button } from "@/components/ui/Button";
+import { Plus } from "lucide-react";
 
 type DailyTradesProps = {
   dateKey: string;
@@ -125,23 +126,31 @@ export function DailyTrades({ dateKey, trades, onChange, coinNotes, onChangeCoin
   );
 
   return (
-    <div className="mt-6 rounded-xl border border-border-soft bg-surface/40 p-5">
-      <div className="flex items-baseline justify-between flex-wrap gap-3 mb-4">
+    <div className="mt-6 rounded-xl border border-border-soft bg-surface/40 p-3 sm:p-5">
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
         <h2 className="font-serif text-2xl text-ink">{formatLongDate(dateKey)}</h2>
-        <Button onClick={handleAddCoin}>+ Add Coin</Button>
+        <div className="flex items-center gap-2">
+          <span className="rounded-md bg-surface-2 px-2 py-1 text-xs text-dim">
+            {dayTrades.length} {dayTrades.length === 1 ? "coin" : "coins"}
+          </span>
+          <Button onClick={handleAddCoin} className="inline-flex items-center gap-1.5">
+            <Plus size={14} /> Add Coin
+          </Button>
+        </div>
       </div>
 
-      <div className="mb-5">
+      <div className="mb-4">
         <TradeSummary stats={stats} />
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4 items-start">
-        <CoinNotesPanel dateKey={dateKey} notes={coinNotes} onChange={onChangeCoinNotes} />
-
-        <div className="flex-1 min-w-0 w-full">
+      <div className="space-y-4">
+        <div>
           {dayTrades.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-faint">
-              No trades recorded.
+            <div className="rounded-lg border border-dashed border-border py-10 px-4 text-center">
+              <p className="text-sm text-faint mb-3">No trades recorded for this day.</p>
+              <Button onClick={handleAddCoin} className="inline-flex items-center gap-1.5">
+                <Plus size={14} /> Add your first coin
+              </Button>
             </div>
           ) : (
             <TradeList
@@ -155,6 +164,7 @@ export function DailyTrades({ dateKey, trades, onChange, coinNotes, onChangeCoin
           )}
         </div>
 
+        <CoinNotesPanel dateKey={dateKey} notes={coinNotes} onChange={onChangeCoinNotes} />
       </div>
     </div>
   );

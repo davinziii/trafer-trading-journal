@@ -7,11 +7,13 @@ type WinLossFieldProps = {
   touched?: boolean;
   onChange: (value: number) => void;
   error?: boolean;
+  /** Width/extra classes; replaces the default w-16. */
+  className?: string;
 };
 
 const NUMERIC_PATTERN = /^[0-9]*\.?[0-9]*$/;
 
-export function WinLossField({ value, touched, onChange, error }: WinLossFieldProps) {
+export function WinLossField({ value, touched, onChange, error, className = "w-16" }: WinLossFieldProps) {
   const [focused, setFocused] = useState(false);
   const [raw, setRaw] = useState(touched ? String(value) : "");
 
@@ -37,7 +39,7 @@ export function WinLossField({ value, touched, onChange, error }: WinLossFieldPr
         onChange(isFinite(n) ? n : 0);
       }}
       onBlur={() => setFocused(false)}
-      className={`font-mono w-16 bg-surface-2 text-sm text-ink px-2 py-1.5 rounded-md border transition-colors ${
+      className={`font-mono ${className} bg-surface-2 text-sm text-ink px-2 py-1.5 rounded-md border transition-colors ${
         error ? "border-danger" : "border-border"
       }`}
     />
