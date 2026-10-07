@@ -9,7 +9,9 @@ import {
   formatPostMins,
   formatRate,
   formatSignedPct,
+  highestPnl,
   holdLabel,
+  isComplete,
   pnlTextClass,
 } from "@/lib/thesisCalculations";
 import { ThesisEntry } from "@/lib/thesisTypes";
@@ -115,6 +117,8 @@ export function DailySummary({ dateKey, entries }: { dateKey: string; entries: T
             </div>
           </div>
 
+          <CoinNotes entries={entries} />
+
           <div>
             <div className="text-xs mb-2 text-faint">AI summary for this day</div>
             <ThesisAiPanel
@@ -129,5 +133,48 @@ export function DailySummary({ dateKey, entries }: { dateKey: string; entries: T
         </div>
       )}
     </section>
+  );
+}
+
+/** The day's per-coin notes next to how each coin did, so the reasoning sits beside the result. */
+function CoinNotes({ entries }: { entries: ThesisEntry[] }) {
+  const noted = entries.filter((e) => e.notes?.trim());
+  return (
+    <div>
+      <div className="text-xs mb-2 text-faint">
+        Coin notes <span className="text-faint/70">· {noted.length} of {entries.length}</span>
+      </div>
+      {noted.length === 0 ? (
+        <p className="rounded-md border border-dashed border-border px-3 py-3 text-xs text-faint">
+          No notes yet — add one in the Note field on any coin card above.
+        </p>
+      ) : (
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {noted.map((e) => {
+            const hp = highestPnl(e);
+            return (
+              <li key={e.id} className="rounded-md border border-border-soft bg-surface px-3 py-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-mono text-sm font-medium text-ink">${e.ticker}</span>
+                  {e.type.trim() && (
+                    <span className="rounded bg-surface-3 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-dim">{e.type}</span>
+                  )}
+                  <span className="ml-auto font-mono text-xs">
+                    {hp ? (
+                      <span className={pnlTextClass(hp.percentage)} title="Highest PNL">
+                        {formatSignedPct(hp.percentage)}
+                      </span>
+                    ) : (
+                      <span className="text-faint">{isComplete(e) ? "—" : "tracking"}</span>
+                    )}
+                  </span>
+                </div>
+                <p className="text-sm text-dim leading-snug whitespace-pre-wrap break-words">{e.notes!.trim()}</p>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }

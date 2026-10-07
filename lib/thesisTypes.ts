@@ -8,7 +8,7 @@ export const STRATEGY_ID = "mins-after-migration";
 export const STRATEGY_LABEL = "Mins after migration strat";
 
 /** Suggestions only — TYPE is free text and is never classified automatically. */
-export const TYPE_SUGGESTIONS = ["CTO", "AI", "Meme", "Animal", "Celebrity", "Meta", "Community", "Other"];
+export const TYPE_SUGGESTIONS = ["CTO", "AI", "Meme", "Animal", "Celebrity", "Meta", "Community", "Tech", "Other"];
 
 /** Minutes after the entry snapshot at which the market is observed. */
 export const HOLD_MINUTES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;

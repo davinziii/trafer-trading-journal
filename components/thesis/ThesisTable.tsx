@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, useEffect, useState } from "react";
-import { ExternalLink, NotebookPen } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { formatMarketCap, truncateAddress } from "@/lib/calculations";
 import { axiomTokenUrl } from "@/lib/axiom";
 import {
@@ -20,9 +20,10 @@ import {
   slotState,
   snapshotKey,
 } from "@/lib/thesisCalculations";
-import { HOLD_MINUTES, HoldMinute, TYPE_SUGGESTIONS, ThesisEntry } from "@/lib/thesisTypes";
+import { HOLD_MINUTES, HoldMinute, ThesisEntry } from "@/lib/thesisTypes";
 import { AutoResizeTextarea } from "@/components/trades/AutoResizeTextarea";
 import { ConfirmDeleteButton } from "@/components/ui/ConfirmDeleteButton";
+import { TypeCombobox } from "./TypeCombobox";
 import type { CommitThesis } from "./useThesisStore";
 
 type ThesisTableProps = {
@@ -36,38 +37,22 @@ const fieldInput = "h-[34px] bg-surface-2 text-sm text-ink px-2 rounded-md borde
 
 /**
  * Coin list for the selected day. Each coin is a two-row card:
- *   1. identity + the fields you edit (type, post-migration time) + derived pre-migration age + actions
+ *   1. identity + the fields you edit (type, post-migration time) + derived pre-migration age + note + actions
  *   2. the market timeline — Entry MC → 1m…10m → Highest PNL — with room to breathe
  * On narrow screens the ten minutes wrap into two rows of five instead of scrolling sideways.
  */
 export function ThesisTable({ entries, commit, now }: ThesisTableProps) {
-  const [openNotes, setOpenNotes] = useState<Set<string>>(new Set());
-
   const update = (id: string, patch: Partial<ThesisEntry>) =>
     commit((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
   const remove = (id: string) => commit((prev) => prev.filter((e) => e.id !== id));
-  const toggleNotes = (id: string) =>
-    setOpenNotes((s) => {
-      const next = new Set(s);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
 
   return (
     <div className="space-y-3">
-      <datalist id="thesis-type-suggestions">
-        {TYPE_SUGGESTIONS.map((t) => (
-          <option key={t} value={t} />
-        ))}
-      </datalist>
       {entries.map((e) => (
         <CoinCard
           key={e.id}
           entry={e}
           now={now}
-          notesOpen={openNotes.has(e.id)}
-          onToggleNotes={() => toggleNotes(e.id)}
           onUpdate={(p) => update(e.id, p)}
           onDelete={() => remove(e.id)}
         />
@@ -79,22 +64,17 @@ export function ThesisTable({ entries, commit, now }: ThesisTableProps) {
 function CoinCard({
   entry: e,
   now,
-  notesOpen,
-  onToggleNotes,
   onUpdate,
   onDelete,
 }: {
   entry: ThesisEntry;
   now: number;
-  notesOpen: boolean;
-  onToggleNotes: () => void;
   onUpdate: (p: Partial<ThesisEntry>) => void;
   onDelete: () => void;
 }) {
   const axiom = axiomTokenUrl({ chainId: e.chainId, pairAddress: e.pairAddress });
   const complete = isComplete(e);
   const hp = highestPnl(e);
-  const hasNotes = !!e.notes?.trim();
 
   const age = resolvePreMigrationAgeMs(e);
   const approxAge = e.preMigrationBasis !== "migration-timestamp";
@@ -106,7 +86,8 @@ function CoinCard({
     >
       {/* ROW 1 — identity, editable fields, actions */}
       <div className="flex flex-wrap items-end gap-x-6 gap-y-3 px-3 sm:px-4 pt-3.5 pb-3">
-        <div className="min-w-[10rem] sm:min-w-[12rem]">
+        {/* On phones the delete button sits beside the ticker (order-2) instead of on a row of its own. */}
+        <div className="order-1 flex-1 sm:flex-none sm:order-none min-w-[10rem] sm:min-w-[12rem]">
           <div className="flex items-center gap-1.5">
             <span className="font-mono text-base font-semibold text-ink" title={e.name ?? e.ticker}>
               ${e.ticker}
@@ -143,23 +124,22 @@ function CoinCard({
           </div>
         </div>
 
-        <Field label="Type">
-          <input
-            type="text"
-            list="thesis-type-suggestions"
+        <Field label="Type" className="order-3 sm:order-none">
+          <TypeCombobox
             value={e.type}
             placeholder="—"
             aria-label={`Type for ${e.ticker}`}
-            onChange={(ev) => onUpdate({ type: ev.target.value })}
-            className={`w-28 ${fieldInput}`}
+            onChange={(type) => onUpdate({ type })}
+            className="w-32"
+            inputClassName={fieldInput}
           />
         </Field>
 
-        <Field label="Post-migration" hint="Minutes after migration when you entered — typed by you">
+        <Field label="Post-migration" className="order-3 sm:order-none" hint="Minutes after migration when you entered — typed by you">
           <PostTimeField entry={e} onChange={(mins) => onUpdate({ postMigrationMins: mins })} />
         </Field>
 
-        <Field label="Pre-migration age" hint="How old the token was before migration (approximate)">
+        <Field label="Pre-migration age" className="order-3 sm:order-none" hint="How old the token was before migration (approximate)">
           <div className="h-[34px] flex items-center font-mono text-sm">
             <span
               title={preMigrationNote(e)}
@@ -172,17 +152,17 @@ function CoinCard({
           </div>
         </Field>
 
-        <div className="ml-auto flex items-center gap-0.5 h-[34px]">
-          <button
-            type="button"
-            onClick={onToggleNotes}
-            aria-expanded={notesOpen}
-            aria-label={hasNotes ? "Edit notes" : "Add notes"}
-            title={hasNotes ? "Edit notes" : "Add notes"}
-            className={`p-1.5 rounded-md transition-colors hover:bg-surface-3 ${hasNotes || notesOpen ? "text-accent" : "text-faint hover:text-ink"}`}
-          >
-            <NotebookPen size={15} />
-          </button>
+        <Field label="Note" className="order-3 sm:order-none flex-1 min-w-[14rem] basis-full sm:basis-auto">
+          <AutoResizeTextarea
+            value={e.notes ?? ""}
+            placeholder="Why this coin, what you saw, what happened…"
+            aria-label={`Note for ${e.ticker}`}
+            className="w-full min-h-[34px]"
+            onChange={(ev) => onUpdate({ notes: ev.target.value })}
+          />
+        </Field>
+
+        <div className="order-2 sm:order-none ml-auto self-start sm:self-end flex items-center h-[34px]">
           <ConfirmDeleteButton onConfirm={onDelete} />
         </div>
       </div>
@@ -200,39 +180,14 @@ function CoinCard({
           </div>
           <HighestPnlBlock entry={e} now={now} />
         </div>
-
-        {notesOpen ? (
-          <div className="mt-3 rounded-md border border-border-soft bg-surface-2/40 p-2.5">
-            <label className={`${label} block mb-1`}>Notes — ${e.ticker}</label>
-            <AutoResizeTextarea
-              autoFocus
-              value={e.notes ?? ""}
-              placeholder="Anything worth remembering about this coin…"
-              className="w-full"
-              onChange={(ev) => onUpdate({ notes: ev.target.value })}
-            />
-          </div>
-        ) : (
-          hasNotes && (
-            <button
-              type="button"
-              onClick={onToggleNotes}
-              title="Edit notes"
-              className="mt-2.5 block w-full text-left text-xs text-dim hover:text-ink truncate transition-colors"
-            >
-              <span className="text-faint">Note · </span>
-              {e.notes}
-            </button>
-          )
-        )}
       </div>
     </article>
   );
 }
 
-function Field({ label: text, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+function Field({ label: text, hint, className, children }: { label: string; hint?: string; className?: string; children: ReactNode }) {
   return (
-    <div title={hint}>
+    <div title={hint} className={className}>
       <div className={`${label} mb-1`}>{text}</div>
       {children}
     </div>

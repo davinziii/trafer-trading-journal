@@ -8,7 +8,8 @@ import { formatMarketCap, formatLongDate } from "@/lib/calculations";
 import { sameAddress, validateAddress } from "@/lib/dexscreener";
 import { buildEntry, parseMins } from "@/lib/thesisCalculations";
 import { fetchTokenLookup } from "@/lib/thesisClient";
-import { TYPE_SUGGESTIONS, ThesisEntry } from "@/lib/thesisTypes";
+import { ThesisEntry } from "@/lib/thesisTypes";
+import { TypeCombobox } from "./TypeCombobox";
 import { storage } from "@/lib/storage";
 
 type CoinAdderProps = {
@@ -115,11 +116,6 @@ export function CoinAdder({ onCreate }: CoinAdderProps) {
 
   return (
     <div ref={wrap}>
-      <datalist id="thesis-type-form-suggestions">
-        {TYPE_SUGGESTIONS.map((t) => (
-          <option key={t} value={t} />
-        ))}
-      </datalist>
       <span className="text-[10px] uppercase tracking-wide text-faint block mb-1.5">Contract address</span>
       <div className="grid gap-2 grid-cols-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
         <div className="relative col-span-2 sm:col-span-3">
@@ -142,16 +138,14 @@ export function CoinAdder({ onCreate }: CoinAdderProps) {
           />
           {busy && <Loader2 size={15} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-faint" />}
         </div>
-        <Input
-          type="text"
-          list="thesis-type-form-suggestions"
+        <TypeCombobox
           value={type}
           disabled={busy}
           placeholder="Type (CTO, AI…)"
           aria-label="Type"
-          onChange={(e) => setType(e.target.value)}
+          onChange={setType}
           onKeyDown={onEnter}
-          className={`w-full ${field} disabled:opacity-60`}
+          inputClassName={`bg-surface-2 text-ink px-2 rounded-md border border-border transition-colors placeholder:text-faint ${field} disabled:opacity-60`}
         />
         <Input
           type="text"
