@@ -85,9 +85,9 @@ function CoinCard({
       className={`rounded-lg border bg-surface transition-colors ${complete ? "border-border-soft hover:border-border" : "border-accent/40"}`}
     >
       {/* ROW 1 — identity, editable fields, actions */}
-      <div className="flex flex-wrap items-end gap-x-6 gap-y-3 px-3 sm:px-4 pt-3.5 pb-3">
+      <div className="flex flex-wrap items-start gap-x-6 gap-y-3 px-3 sm:px-4 pt-3.5 pb-3">
         {/* On phones the delete button sits beside the ticker (order-2) instead of on a row of its own. */}
-        <div className="order-1 flex-1 sm:flex-none sm:order-none min-w-[10rem] sm:min-w-[12rem]">
+        <div className="order-1 flex-1 sm:flex-none sm:order-none sm:mt-4 min-w-[10rem] sm:min-w-[12rem]">
           <div className="flex items-center gap-1.5">
             <span className="font-mono text-base font-semibold text-ink" title={e.name ?? e.ticker}>
               ${e.ticker}
@@ -162,7 +162,7 @@ function CoinCard({
           />
         </Field>
 
-        <div className="order-2 sm:order-none ml-auto self-start sm:self-end flex items-center h-[34px]">
+        <div className="order-2 sm:order-none ml-auto sm:mt-[19px] flex items-center h-[34px]">
           <ConfirmDeleteButton onConfirm={onDelete} />
         </div>
       </div>
