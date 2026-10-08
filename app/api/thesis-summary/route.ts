@@ -3,6 +3,9 @@ import { generateJson } from "@/lib/gemini";
 import { findUnverifiedNumbers } from "@/lib/thesisAi";
 import type { ThesisSummaryContent, ThesisSummaryScope } from "@/lib/thesisTypes";
 
+// Retries + fallback models can take a while when Gemini is busy.
+export const maxDuration = 60;
+
 // Server-side only: the Gemini key never reaches the browser (same flow as /api/trade-summary).
 
 const SYSTEM_PROMPT = `You're a blunt trading buddy looking at a memecoin trader's data-collection experiment. The strategy being tested: "enter a memecoin some minutes after migration, then hold for 1–10 minutes". How many minutes after migration is a variable the trader types per coin (POST-MIGRATION TIME), so entry timing itself is something the data can compare. The trader pasted contract addresses, the app recorded the market cap at that moment (the entry), then recorded the market cap every minute for 10 minutes. You did not watch the market — everything you say must come from the stats you're given.
@@ -74,7 +77,7 @@ export async function POST(req: NextRequest) {
     `Analyze this and respond with only the JSON object described in your instructions.`,
   ].join("\n");
 
-  const result = await generateJson({ apiKey, systemPrompt: SYSTEM_PROMPT, userPrompt, temperature: 0.3, maxOutputTokens: 3072 });
+  const result = await generateJson({ apiKey, systemPrompt: SYSTEM_PROMPT, userPrompt, temperature: 0.3 });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
 
   const p = result.json;

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { SummaryRequestPayload, TradeSummaryContent } from "@/lib/types";
+import { generateJson } from "@/lib/gemini";
 
 // Server-side only. This route is the one place that touches the AI API key —
 // the client never sees it, per the app's client -> server route -> AI API flow.
-// Uses a plain fetch() call to the Gemini REST API on purpose: no extra
-// package (e.g. @google/genai) has to be installed for this to work.
-const GEMINI_MODEL = "gemini-3.6-flash";
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+// The Gemini call itself (retries, model fallback) lives in lib/gemini.ts.
+
+// Retries + fallback models can take a while when Gemini is busy.
+export const maxDuration = 60;
 
 const SYSTEM_PROMPT = `You're a blunt trading buddy looking over a crypto trader's own journal entries — not a Wall Street analyst. You didn't watch the market yourself, so everything you say must come from the data given to you.
 
@@ -71,14 +72,6 @@ function buildUserPrompt(payload: SummaryRequestPayload): string {
   ].join("\n");
 }
 
-function stripCodeFence(text: string): string {
-  const trimmed = text.trim();
-  return trimmed
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
-}
-
 export async function POST(req: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -99,88 +92,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No trades to analyze." }, { status: 400 });
   }
 
-  try {
-    const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { role: "system", parts: [{ text: SYSTEM_PROMPT }] },
-        contents: [{ role: "user", parts: [{ text: buildUserPrompt(payload) }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.4,
-          maxOutputTokens: 2048,
-        },
-      }),
-    });
+  const result = await generateJson({ apiKey, systemPrompt: SYSTEM_PROMPT, userPrompt: buildUserPrompt(payload), temperature: 0.4 });
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("Gemini API error", response.status, errText);
-      // Surface the real reason (bad key, wrong model, quota, etc.) instead
-      // of a generic message, since that's exactly what's needed to debug
-      // a "still doesn't work" report.
-      let detail = errText;
-      try {
-        const errJson = JSON.parse(errText);
-        detail = errJson?.error?.message || errText;
-      } catch {
-        // errText wasn't JSON — use it as-is.
-      }
-      return NextResponse.json(
-        { error: `Gemini API error (${response.status}): ${detail}` },
-        { status: 502 }
-      );
-    }
+  const parsed = result.json;
+  const asStringArray = (v: unknown): string[] => (Array.isArray(v) ? v.map((x) => String(x)) : []);
 
-    const data = await response.json();
+  const content: TradeSummaryContent = {
+    overview: typeof parsed.overview === "string" ? parsed.overview : "",
+    performance: payload.performance,
+    whatWentWell: asStringArray(parsed.whatWentWell),
+    whatWentWrong: asStringArray(parsed.whatWentWrong),
+    recommendations: asStringArray(parsed.recommendations),
+    bestDecisions: asStringArray(parsed.bestDecisions),
+    patterns: typeof parsed.patterns === "string" ? parsed.patterns : "",
+  };
 
-    // A prompt/response can be blocked by safety filters instead of erroring.
-    const blockReason = data?.promptFeedback?.blockReason;
-    const finishReason = data?.candidates?.[0]?.finishReason;
-    if (blockReason || (finishReason && finishReason !== "STOP")) {
-      console.error("Gemini response blocked or incomplete", blockReason, finishReason);
-      return NextResponse.json(
-        { error: `Gemini response was blocked or incomplete (${blockReason || finishReason}).` },
-        { status: 502 }
-      );
-    }
-
-    const parts = data?.candidates?.[0]?.content?.parts;
-    const text: string | undefined = Array.isArray(parts)
-      ? parts.map((p: { text?: string }) => p.text ?? "").join("")
-      : undefined;
-
-    if (!text) {
-      return NextResponse.json({ error: "Gemini returned no content." }, { status: 502 });
-    }
-
-    let parsed: Record<string, unknown>;
-    try {
-      parsed = JSON.parse(stripCodeFence(text));
-    } catch (err) {
-      console.error("Failed to parse AI response as JSON", text);
-      return NextResponse.json({ error: "Gemini returned an unexpected format." }, { status: 502 });
-    }
-
-    const asStringArray = (v: unknown): string[] => (Array.isArray(v) ? v.map((x) => String(x)) : []);
-
-    const content: TradeSummaryContent = {
-      overview: typeof parsed.overview === "string" ? parsed.overview : "",
-      performance: payload.performance,
-      whatWentWell: asStringArray(parsed.whatWentWell),
-      whatWentWrong: asStringArray(parsed.whatWentWrong),
-      recommendations: asStringArray(parsed.recommendations),
-      bestDecisions: asStringArray(parsed.bestDecisions),
-      patterns: typeof parsed.patterns === "string" ? parsed.patterns : "",
-    };
-
-    return NextResponse.json(content);
-  } catch (err) {
-    console.error("Trade summary generation failed", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? `Request to Gemini failed: ${err.message}` : "Unable to generate trade summary right now." },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(content);
 }
